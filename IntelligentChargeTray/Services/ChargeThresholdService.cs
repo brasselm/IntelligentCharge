@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace IntelligentChargeTray.Services;
 
@@ -18,6 +20,28 @@ public class ChargeThresholdService : IChargeThresholdService
     internal ChargeThresholdService(string exePath)
     {
         _exePath = exePath;
+        if (!File.Exists(_exePath))
+        {
+            TryExtractEmbeddedExe(_exePath);
+        }
+    }
+
+    private void TryExtractEmbeddedExe(string targetPath)
+    {
+        var asm = Assembly.GetExecutingAssembly();
+        var resource = asm.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith("ChargeThreshold.exe", StringComparison.OrdinalIgnoreCase));
+        if (resource == null)
+            throw new FileNotFoundException("ChargeThreshold.exe nicht gefunden und auch nicht als eingebettete Ressource vorhanden.");
+
+        using var rs = asm.GetManifestResourceStream(resource)
+            ?? throw new InvalidOperationException("Eingebettete Ressource konnte nicht geöffnet werden: " + resource);
+
+        var dir = Path.GetDirectoryName(targetPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+        using var fs = File.Create(targetPath);
+        rs.CopyTo(fs);
     }
 
     /// <summary>

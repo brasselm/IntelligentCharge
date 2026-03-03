@@ -1,0 +1,19 @@
+<Project>
+  <ItemGroup>
+    <PackageReference Include="GitVersion.MsBuild" Version="5.*" PrivateAssets="All" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Prefer git-derived version variables when available; fall back to 1.0.1 -->
+    <Version Condition="'$(GitVersion_NuGetVersion)' == ''">1.0.1</Version>
+    <Version Condition="'$(GitVersion_NuGetVersion)' != ''">$(GitVersion_NuGetVersion)</Version>
+
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+
+    <InformationalVersion Condition="'$(GitVersion_InformationalVersion)' == ''">1.0.1+local</InformationalVersion>
+    <InformationalVersion Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InformationalVersion>
+
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+</Project>

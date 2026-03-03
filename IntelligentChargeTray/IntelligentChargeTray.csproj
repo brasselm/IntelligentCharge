@@ -30,4 +30,20 @@
     Ohne Icons verwendet die App automatisch Windows-Systemicons als Fallback.
   -->
 
+  <PropertyGroup>
+    <!-- Default publish settings for producing a self-contained single-file EXE for Windows -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- If a ChargeThreshold.exe is present in the repository root, embed it into the assembly. -->
+    <EmbeddedResource Include="..\ChargeThreshold.exe" Condition="Exists('..\\ChargeThreshold.exe')" />
+  </ItemGroup>
+
 </Project>
+
