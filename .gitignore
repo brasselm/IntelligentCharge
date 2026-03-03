@@ -1,0 +1,60 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options
+.vs/
+
+# Visual Studio Code
+.vscode/
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+
+# Test Results
+TestResults/
+
+# Artifacts
+artifacts/
+
+# Environment variables
+.env
+.env.local
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Claude temp files
+tmpclaude-*-cwd
+
+# Manual Excludes
+ChargeThreshold.exe
+outputs.txt
+Toggle-AkkuPowerMode.ps1

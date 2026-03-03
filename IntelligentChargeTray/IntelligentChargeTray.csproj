@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>IntelligentChargeTray</AssemblyName>
+    <RootNamespace>IntelligentChargeTray</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Testprojekt darf internal-Member nutzen -->
+    <InternalsVisibleTo Include="IntelligentChargeTray.Tests" />
+  </ItemGroup>
+
+  <!--
+    Icons als eingebettete Ressourcen einbinden (sobald .ico-Dateien vorhanden sind).
+    Platzhalter-Icons können z.B. mit Visual Studio oder einem Icon-Editor erstellt
+    und in den Ordner Resources\ abgelegt werden.
+
+    Dann auskommentieren:
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\icon_on.ico" />
+    <EmbeddedResource Include="Resources\icon_off.ico" />
+  </ItemGroup>
+
+    Ohne Icons verwendet die App automatisch Windows-Systemicons als Fallback.
+  -->
+
+</Project>
