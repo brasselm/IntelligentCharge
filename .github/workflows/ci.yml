@@ -29,3 +29,20 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
+      
+      - name: Determine version (GitVersion)
+        uses: gittools/actions/gitversion/setup@v0.9.13
+        id: gitversion
+
+      - name: Publish self-contained single-file (win-x64)
+        run: |
+          dotnet publish IntelligentChargeTray/IntelligentChargeTray.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true -o publish/win-x64
+
+      - name: Write version file
+        run: echo "${{ steps.gitversion.outputs.nugetversionv2 }}" > publish/win-x64/version.txt
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-winx64
+          path: publish/win-x64

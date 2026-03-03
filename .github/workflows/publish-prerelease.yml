@@ -1,39 +1,73 @@
 name: Publish Pre-release
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]      # name of your build workflow
+    types: [completed]
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Publish self-contained single-file (win-x64)
+      - name: Download CI artifact from triggering workflow run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          dotnet publish IntelligentChargeTray/IntelligentChargeTray.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true -o publish/win-x64
+          $api = "https://api.github.com/repos/$env:REPO/actions/runs/$env:RUN_ID/artifacts"
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
+          $resp = Invoke-RestMethod -Uri $api -Headers $headers -Method Get
+          $artifact = $resp.artifacts | Where-Object { $_.name -eq 'publish-winx64' } | Select-Object -First 1
+          if (-not $artifact) { Write-Error 'publish-winx64 artifact not found on triggering workflow run'; exit 1 }
+          $downloadUrl = "https://api.github.com/repos/$env:REPO/actions/artifacts/$($artifact.id)/zip"
+          Invoke-RestMethod -Uri $downloadUrl -Headers $headers -OutFile publish.zip -Method Get
+          Expand-Archive -Path publish.zip -DestinationPath publish -Force
+          Write-Output "Downloaded artifact to publish"
+
+      - name: Read version from artifact
+        id: read_version
+        run: |
+          $v = Get-Content publish/win-x64/version.txt -Raw
+          Write-Output "version=$v" | Out-File -FilePath $GITHUB_OUTPUT -Encoding utf8
+
+      - name: Remove existing release and tag if present
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          $tag = "v${{ steps.read_version.outputs.version }}"
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
+          # Try to get release by tag
+          try {
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/releases/tags/$tag" -Headers $headers -Method Get -ErrorAction Stop
+          } catch {
+            $rel = $null
+          }
+          if ($rel) {
+            Write-Output "Found existing release id $($rel.id) for tag $tag - deleting"
+            Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/releases/$($rel.id)" -Headers $headers -Method Delete
+          }
+          # Delete git ref for tag if exists
+          try {
+            Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/git/refs/tags/$tag" -Headers $headers -Method Delete -ErrorAction Stop
+            Write-Output "Deleted git ref refs/tags/$tag"
+          } catch {
+            # ignore if not exists
+          }
 
       - name: Create GitHub prerelease and upload artifact
         uses: ncipollo/release-action@v1
         with:
-          tag: prerelease-${{ github.run_number }}
-          release_name: IntelligentCharge prerelease ${{ github.run_number }}
+          tag: v${{ steps.read_version.outputs.version }}
+          release_name: IntelligentCharge v${{ steps.read_version.outputs.version }}
           body: |
-            CI prerelease build ${{ github.run_id }}
+            CI prerelease build from run ${{ github.event.workflow_run.id }}
           prerelease: true
           files: |
             publish/win-x64/IntelligentChargeTray.exe
