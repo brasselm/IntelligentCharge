@@ -56,6 +56,6 @@ Thumbs.db
 tmpclaude-*-cwd
 
 # Manual Excludes
-ChargeThreshold.exe
+# ChargeThreshold.exe
 outputs.txt
 Toggle-AkkuPowerMode.ps1

@@ -1,0 +1,39 @@
+name: Publish Pre-release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish self-contained single-file (win-x64)
+        run: |
+          dotnet publish IntelligentChargeTray/IntelligentChargeTray.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true -o publish/win-x64
+
+      - name: Create GitHub prerelease and upload artifact
+        uses: ncipollo/release-action@v1
+        with:
+          tag: prerelease-${{ github.run_number }}
+          release_name: IntelligentCharge prerelease ${{ github.run_number }}
+          body: |
+            CI prerelease build ${{ github.run_id }}
+          prerelease: true
+          files: |
+            publish/win-x64/IntelligentChargeTray.exe
