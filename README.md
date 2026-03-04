@@ -9,6 +9,7 @@ Windows-Systemtray-Anwendung zur Verwaltung von Akku-Ladeschwellenwerten. Verlä
   - **75 %–80 %**: Minimaler Ladepuffer, hohe Lebensdauer
   - **60 %–80 %**: Erweiterter Puffer für längere Nutzungszeiten ohne Strom
 - Ladebegrenzung deaktivieren (volle Ladung auf 100 %)
+- **Batterie-Statusanzeige**: Ladestand, Lade-/Entladezustand und aktiver Energieplan im Tray-Menü
 - Autostart beim Windows-Login (ohne Administratorrechte)
 - Automatische Statusaktualisierung alle 30 Sekunden
 
@@ -23,11 +24,15 @@ IntelligentCharge/
 ├── IntelligentChargeTray/                 # Hauptanwendung
 │   ├── Program.cs                         # Einstiegspunkt
 │   ├── TrayApplicationContext.cs          # Tray-Logik und Menüsteuerung
+│   ├── Models/
+│   │   └── BatteryInfo.cs                 # Datenmodell für Batterie-Zustand
 │   └── Services/
 │       ├── IChargeThresholdService.cs     # Interface für Ladeschwellwert-Operationen
 │       ├── ChargeThresholdService.cs      # Implementierung (wraps ChargeThreshold.exe)
 │       ├── IAutostartService.cs           # Interface für Autostart-Verwaltung
-│       └── AutostartService.cs            # Registry-basierte Autostart-Implementierung
+│       ├── AutostartService.cs            # Registry-basierte Autostart-Implementierung
+│       ├── IBatteryStateService.cs        # Interface für Batterie-Statusabfrage
+│       └── BatteryStateService.cs         # Implementierung via Windows-API + powrprof.dll
 │
 └── IntelligentChargeTray.Tests/           # Testprojekt
     ├── ChargeThresholdServiceTests.cs     # Unit-Tests für Output-Parser
@@ -69,6 +74,7 @@ Rechtsklick auf das Tray-Symbol öffnet das Kontextmenü:
 
 | Menüpunkt | Beschreibung |
 |---|---|
+| **Batterie** | Ladestand, Lade-/Entladezustand und aktiver Energieplan (nur lesbar) |
 | **Status** | Zeigt aktuellen Ladestatus (nur lesbar) |
 | **Aktivieren (75–80 %)** | Schwellwert: Start bei 75 %, Stop bei 80 % |
 | **Aktivieren (60–80 %)** | Schwellwert: Start bei 60 %, Stop bei 80 % |
@@ -82,6 +88,7 @@ Rechtsklick auf das Tray-Symbol öffnet das Kontextmenü:
 |---|---|
 | Laufzeitumgebung | .NET 10.0 (Windows) |
 | UI-Framework | Windows Forms |
+| Batterie-API | `SystemInformation.PowerStatus` + P/Invoke (`powrprof.dll`) |
 | Autostart | Windows Registry (HKCU) |
 | Testframework | xUnit 2.9.3 |
 | Mocking | NSubstitute 5.3.0 |
@@ -107,8 +114,11 @@ TrayApplicationContext (UI-Schicht)
         ├── IChargeThresholdService  →  ChargeThresholdService
         │       └── ruft ChargeThreshold.exe auf (via Process)
         │
-        └── IAutostartService        →  AutostartService
-                └── liest/schreibt Windows Registry (HKCU)
+        ├── IAutostartService        →  AutostartService
+        │       └── liest/schreibt Windows Registry (HKCU)
+        │
+        └── IBatteryStateService     →  BatteryStateService
+                └── liest SystemInformation.PowerStatus + powrprof.dll
 ```
 
 Alle Abhängigkeiten werden über Interfaces injiziert, wodurch die UI-Logik vollständig ohne externe Prozesse oder Registry-Zugriffe getestet werden kann.
