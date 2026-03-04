@@ -1,3 +1,5 @@
+using System.Windows.Forms;
+using IntelligentChargeTray.Models;
 using IntelligentChargeTray.Services;
 
 namespace IntelligentChargeTray;
@@ -9,11 +11,13 @@ public class TrayApplicationContext : ApplicationContext
 {
     private readonly IChargeThresholdService _chargeService;
     private readonly IAutostartService _autostartService;
+    private readonly IBatteryStateService _batteryStateService;
 
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _contextMenu;
 
     // Menü-Einträge, die dynamisch aktualisiert werden
+    private readonly ToolStripMenuItem _batteryStatusItem;
     private readonly ToolStripMenuItem _statusItem;
     private readonly ToolStripMenuItem _enable80Item;
     private readonly ToolStripMenuItem _enable8060Item;
@@ -23,12 +27,18 @@ public class TrayApplicationContext : ApplicationContext
     // Status-Polling-Timer (optional, alle 30 Sekunden)
     private readonly System.Windows.Forms.Timer _pollingTimer;
 
-    public TrayApplicationContext(IChargeThresholdService chargeService, IAutostartService autostartService)
+    public TrayApplicationContext(IChargeThresholdService chargeService, IAutostartService autostartService, IBatteryStateService batteryStateService)
     {
         _chargeService = chargeService;
         _autostartService = autostartService;
+        _batteryStateService = batteryStateService;
 
         // ── Menü aufbauen ────────────────────────────────────────────────────
+
+        _batteryStatusItem = new ToolStripMenuItem("Batterie: …")
+        {
+            Enabled = false   // nur als Label, nicht klickbar
+        };
 
         _statusItem = new ToolStripMenuItem("Status: …")
         {
@@ -52,6 +62,8 @@ public class TrayApplicationContext : ApplicationContext
 
         _contextMenu = new ContextMenuStrip();
         _contextMenu.Items.AddRange([
+            _batteryStatusItem,
+            new ToolStripSeparator(),
             _statusItem,
             new ToolStripSeparator(),
             _enable80Item,
@@ -165,6 +177,9 @@ public class TrayApplicationContext : ApplicationContext
         _enable8060Item.Checked = active && threshold == 80 && startThreshold == 60;
         _disableItem.Checked = !active;
 
+        // Batterie-Status
+        RefreshBattery();
+
         // Tooltip (max. 63 Zeichen)
         string tooltip = active
             ? $"Ladelimit aktiv{(threshold.HasValue ? $": {startThreshold}% - {threshold}%" : "")}"
@@ -187,6 +202,55 @@ public class TrayApplicationContext : ApplicationContext
         {
             // Autostart-Status nicht kritisch
         }
+    }
+
+    internal void RefreshBattery()
+    {
+        try
+        {
+            var info = _batteryStateService.GetBatteryState();
+            _batteryStatusItem.Text = FormatBatteryInfo(info);
+        }
+        catch
+        {
+            _batteryStatusItem.Text = "Batterie: Fehler";
+        }
+    }
+
+    /// <summary>
+    /// Formatiert einen <see cref="BatteryInfo"/> als lesbaren Menütext.
+    /// </summary>
+    internal static string FormatBatteryInfo(BatteryInfo info)
+    {
+        if (info.ChargeStatus == BatteryChargeStatus.NoSystemBattery)
+            return "Batterie: Kein Akku";
+
+        string level;
+        if (info.ChargeLevel == float.MaxValue)
+        {
+            // Spezieller Wert: Ladezustand unbekannt
+            level = "--";
+        }
+        else if (info.ChargeLevel is >= 0f and <= 1f)
+        {
+            level = $"{(int)(info.ChargeLevel * 100)}%";
+        }
+        else
+        {
+            // Ungültiger Wert außerhalb des erwarteten Bereichs
+            level = "--";
+        }
+
+        string chargeState = info.ChargeStatus != BatteryChargeStatus.Unknown
+                             && info.ChargeStatus.HasFlag(BatteryChargeStatus.Charging)
+            ? "Ladend"
+            : info.PowerLineStatus == PowerLineStatus.Online
+                ? "Netzbetrieb"
+                : "Akkubetrieb";
+
+        string plan = info.ActivePowerPlanName is { Length: > 0 } name ? $" · {name}" : "";
+
+        return $"Batterie: {level} · {chargeState}{plan}";
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────

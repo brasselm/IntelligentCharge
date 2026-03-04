@@ -1,6 +1,8 @@
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using IntelligentChargeTray.Models;
 using IntelligentChargeTray.Services;
+using System.Windows.Forms;
 
 namespace IntelligentChargeTray.Tests;
 
@@ -14,16 +16,26 @@ public class TrayApplicationContextTests : IDisposable
 {
     private readonly IChargeThresholdService _chargeService = Substitute.For<IChargeThresholdService>();
     private readonly IAutostartService _autostartService = Substitute.For<IAutostartService>();
+    private readonly IBatteryStateService _batteryStateService = Substitute.For<IBatteryStateService>();
     private readonly TrayApplicationContext _sut;
 
     public TrayApplicationContextTests()
     {
-        // Standardverhalten: Ladelimit inaktiv, Autostart aus
+        // Standardverhalten: Ladelimit inaktiv, Autostart aus, Batterie bekannt
         _chargeService.IsActive().Returns(false);
         _chargeService.GetCurrentStopThreshold().Returns((int?)null);
         _autostartService.IsEnabled().Returns(false);
+        _batteryStateService.GetBatteryState().Returns(new BatteryInfo
+        {
+            ChargeLevel = 0.78f,
+            ChargeStatus = BatteryChargeStatus.Charging,
+            PowerLineStatus = PowerLineStatus.Online,
+            LifeRemainingSeconds = -1,
+            IsPowerSavePlan = false,
+            ActivePowerPlanName = "Ausbalanciert"
+        });
 
-        _sut = new TrayApplicationContext(_chargeService, _autostartService);
+        _sut = new TrayApplicationContext(_chargeService, _autostartService, _batteryStateService);
     }
 
     public void Dispose() => _sut.Dispose();
@@ -145,5 +157,113 @@ public class TrayApplicationContextTests : IDisposable
         _sut.RefreshAutostart();
 
         _autostartService.Received().IsEnabled();
+    }
+
+    // ── RefreshBattery ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void RefreshBattery_QueriesBatteryStateService()
+    {
+        _sut.RefreshBattery();
+
+        _batteryStateService.Received().GetBatteryState();
+    }
+
+    [Fact]
+    public void RefreshBattery_WhenServiceThrows_DoesNotCrash()
+    {
+        _batteryStateService.GetBatteryState().Throws(new InvalidOperationException("Fehler"));
+
+        var ex = Record.Exception(() => _sut.RefreshBattery());
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void RefreshStatus_CallsBatteryStateService()
+    {
+        _sut.RefreshStatus();
+
+        _batteryStateService.Received().GetBatteryState();
+    }
+
+    // ── FormatBatteryInfo ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void FormatBatteryInfo_Charging_ShowsLadend()
+    {
+        var info = new BatteryInfo
+        {
+            ChargeLevel = 0.78f,
+            ChargeStatus = BatteryChargeStatus.Charging,
+            PowerLineStatus = PowerLineStatus.Online,
+            ActivePowerPlanName = "Ausbalanciert"
+        };
+
+        string result = TrayApplicationContext.FormatBatteryInfo(info);
+
+        Assert.Equal("Batterie: 78% · Ladend · Ausbalanciert", result);
+    }
+
+    [Fact]
+    public void FormatBatteryInfo_OnBattery_ShowsAkkubetrieb()
+    {
+        var info = new BatteryInfo
+        {
+            ChargeLevel = 0.45f,
+            ChargeStatus = BatteryChargeStatus.Low,
+            PowerLineStatus = PowerLineStatus.Offline,
+            ActivePowerPlanName = "Energiesparmodus"
+        };
+
+        string result = TrayApplicationContext.FormatBatteryInfo(info);
+
+        Assert.Equal("Batterie: 45% · Akkubetrieb · Energiesparmodus", result);
+    }
+
+    [Fact]
+    public void FormatBatteryInfo_Online_ShowsNetzbetrieb()
+    {
+        var info = new BatteryInfo
+        {
+            ChargeLevel = 1.0f,
+            ChargeStatus = BatteryChargeStatus.High,
+            PowerLineStatus = PowerLineStatus.Online,
+            ActivePowerPlanName = null
+        };
+
+        string result = TrayApplicationContext.FormatBatteryInfo(info);
+
+        Assert.Equal("Batterie: 100% · Netzbetrieb", result);
+    }
+
+    [Fact]
+    public void FormatBatteryInfo_NoSystemBattery_ShowsKeinAkku()
+    {
+        var info = new BatteryInfo
+        {
+            ChargeLevel = float.MaxValue,
+            ChargeStatus = BatteryChargeStatus.NoSystemBattery,
+            PowerLineStatus = PowerLineStatus.Online
+        };
+
+        string result = TrayApplicationContext.FormatBatteryInfo(info);
+
+        Assert.Equal("Batterie: Kein Akku", result);
+    }
+
+    [Fact]
+    public void FormatBatteryInfo_UnknownLevel_ShowsDash()
+    {
+        var info = new BatteryInfo
+        {
+            ChargeLevel = float.MaxValue,
+            ChargeStatus = BatteryChargeStatus.Unknown,
+            PowerLineStatus = PowerLineStatus.Unknown,
+            ActivePowerPlanName = null
+        };
+
+        string result = TrayApplicationContext.FormatBatteryInfo(info);
+
+        Assert.Equal("Batterie: -- · Akkubetrieb", result);
     }
 }
