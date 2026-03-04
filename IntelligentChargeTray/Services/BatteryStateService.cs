@@ -58,9 +58,11 @@ public class BatteryStateService : IBatteryStateService
                 var guid = Marshal.PtrToStructure<Guid>(guidPtr);
                 bool isPowerSave = guid == PowerSaverGuid;
 
-                uint bufferSize = 1024; // Bytes für Unicode-Puffer
                 var buffer = new System.Text.StringBuilder(512);
-                PowerReadFriendlyName(IntPtr.Zero, ref guid, IntPtr.Zero, IntPtr.Zero, buffer, ref bufferSize);
+                uint bufferSize = (uint)buffer.Capacity; // Anzahl Zeichen im Puffer (Unicode wird vom Marshaller gehandhabt)
+                uint readResult = PowerReadFriendlyName(IntPtr.Zero, ref guid, IntPtr.Zero, IntPtr.Zero, buffer, ref bufferSize);
+                if (readResult != 0)
+                    return (isPowerSave, null);
 
                 string? name = buffer.Length > 0 ? buffer.ToString() : null;
                 return (isPowerSave, name);

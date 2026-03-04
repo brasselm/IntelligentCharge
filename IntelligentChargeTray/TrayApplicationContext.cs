@@ -225,9 +225,21 @@ public class TrayApplicationContext : ApplicationContext
         if (info.ChargeStatus == BatteryChargeStatus.NoSystemBattery)
             return "Batterie: Kein Akku";
 
-        string level = info.ChargeLevel is >= 0f and <= 1f
-            ? $"{(int)(info.ChargeLevel * 100)}%"
-            : "--";
+        string level;
+        if (info.ChargeLevel == float.MaxValue)
+        {
+            // Spezieller Wert: Ladezustand unbekannt
+            level = "--";
+        }
+        else if (info.ChargeLevel is >= 0f and <= 1f)
+        {
+            level = $"{(int)(info.ChargeLevel * 100)}%";
+        }
+        else
+        {
+            // Ungültiger Wert außerhalb des erwarteten Bereichs
+            level = "--";
+        }
 
         string chargeState = info.ChargeStatus != BatteryChargeStatus.Unknown
                              && info.ChargeStatus.HasFlag(BatteryChargeStatus.Charging)
