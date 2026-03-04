@@ -11,10 +11,8 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository (full history)
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -25,19 +23,20 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Release /p:BuildNumber=${{ github.run_number }}
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Publish self-contained single-file (win-x64)
         run: |
-          dotnet publish IntelligentChargeTray/IntelligentChargeTray.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true -o publish/win-x64
+          dotnet publish IntelligentChargeTray/IntelligentChargeTray.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:BuildNumber=${{ github.run_number }} -o publish/win-x64
 
-      - name: Determine version (from Directory.Build.props)
+      - name: Determine version
         run: |
           $xml = Get-Content Directory.Build.props -Raw
-          if ($xml -match '<Version[^>]*>([^<]+)</Version>') { $v = $matches[1].Trim() } else { Write-Error 'Version not found in Directory.Build.props'; exit 1 }
+          if ($xml -match '<MajorMinorVersion[^>]*>([^<]+)</MajorMinorVersion>') { $mn = $matches[1].Trim() } else { Write-Error 'MajorMinorVersion not found in Directory.Build.props'; exit 1 }
+          $v = "$mn.${{ github.run_number }}"
           Write-Output "Found version: $v"
           New-Item -ItemType Directory -Force -Path publish/win-x64 | Out-Null
           Set-Content -Path publish/win-x64/version.txt -Value $v -Encoding utf8

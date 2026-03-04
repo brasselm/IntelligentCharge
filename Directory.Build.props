@@ -1,18 +1,19 @@
 <Project>
-  <ItemGroup>
-    <PackageReference Include="GitVersion.MsBuild" Version="5.*" PrivateAssets="All" />
-  </ItemGroup>
-
   <PropertyGroup>
-    <!-- Prefer git-derived version variables when available; fall back to 1.0.1 -->
-    <Version Condition="'$(GitVersion_NuGetVersion)' == ''">1.0.1</Version>
-    <Version Condition="'$(GitVersion_NuGetVersion)' != ''">$(GitVersion_NuGetVersion)</Version>
+    <!-- ── Manual Version Management ──────────────────────────────────────── -->
+    <!-- Increase m.n here (Major.Minor) -->
+    <MajorMinorVersion>1.0</MajorMinorVersion>
 
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
+    <!-- ── Build number ───────────────────────────────────────────────────── -->
+    <!-- In CI set via /p:BuildNumber=${{ github.run_number }}.              -->
+    <!-- Local: 0 as fallback.                                               -->
+    <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
 
-    <InformationalVersion Condition="'$(GitVersion_InformationalVersion)' == ''">1.0.1+local</InformationalVersion>
-    <InformationalVersion Condition="'$(GitVersion_InformationalVersion)' != ''">$(GitVersion_InformationalVersion)</InformationalVersion>
+    <!-- ── Derived version properties ────────────────────────────────────── -->
+    <Version>$(MajorMinorVersion).$(BuildNumber)</Version>
+    <AssemblyVersion>$(MajorMinorVersion).0.0</AssemblyVersion>
+    <FileVersion>$(MajorMinorVersion).$(BuildNumber)</FileVersion>
+    <InformationalVersion>$(MajorMinorVersion).$(BuildNumber)</InformationalVersion>
 
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
